@@ -45,15 +45,21 @@ def train(model,
             # print data
             inputs, labels = data
 
-            inputs = Variable(inputs.cuda())
-            labels = Variable(torch.from_numpy(np.array(labels)).long().cuda())
+            inputs = Variable(inputs.cpu())
+            labels = Variable(torch.from_numpy(np.array(labels)).long().cpu())
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             outputs = model(inputs)
-            loss = criterion(outputs, labels)
+            if isinstance(outputs, list):
+                loss = criterion(outputs[0], labels)
+                loss += criterion(outputs[1], labels)
+                outputs=outputs[0]
+            else:
+                loss = criterion(outputs, labels)
 
+            _, preds = torch.max(outputs, 1)
             loss.backward()
             optimizer.step()
 
@@ -61,11 +67,11 @@ def train(model,
             if step % print_inter == 0:
                 _, preds = torch.max(outputs, 1)
 
-                batch_corrects = torch.sum((preds == labels)).data[0]
+                batch_corrects = torch.sum((preds == labels)).item()
                 batch_acc = batch_corrects / (labels.size(0))
 
                 logging.info('%s [%d-%d] | batch-loss: %.3f | acc@1: %.3f'
-                             % (dt(), epoch, batch_cnt, loss.data[0], batch_acc))
+                             % (dt(), epoch, batch_cnt, loss.item(), batch_acc))
 
 
             if step % val_inter == 0:
@@ -83,18 +89,23 @@ def train(model,
                     # print data
                     inputs,  labels = data_val
 
-                    inputs = Variable(inputs.cuda())
-                    labels = Variable(torch.from_numpy(np.array(labels)).long().cuda())
+                    inputs = Variable(inputs.cpu())
+                    labels = Variable(torch.from_numpy(np.array(labels)).long().cpu())
 
                     # forward
                     outputs = model(inputs)
+                    if isinstance(outputs, list):
+                        loss = criterion(outputs[0], labels)  #这里选择的crossentropy
+                        loss += criterion(outputs[1], labels)
+                        outputs = outputs[0]
 
-                    loss = criterion(outputs, labels)
+                    else:
+                        loss = criterion(outputs, labels)
                     _, preds = torch.max(outputs, 1)
 
                     # statistics
-                    val_loss += loss.data[0]
-                    batch_corrects = torch.sum((preds == labels)).data[0]
+                    val_loss += loss.item()
+                    batch_corrects = torch.sum((preds == labels)).item()
                     val_corrects += batch_corrects
 
                 val_loss = val_loss / val_size
