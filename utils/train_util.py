@@ -45,8 +45,8 @@ def train(model,
             # print data
             inputs, labels = data
 
-            inputs = Variable(inputs.cpu())
-            labels = Variable(torch.from_numpy(np.array(labels)).long().cpu())
+            inputs = Variable(inputs.cuda())
+            labels = Variable(torch.from_numpy(np.array(labels)).long().cuda())
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -67,11 +67,11 @@ def train(model,
             if step % print_inter == 0:
                 _, preds = torch.max(outputs, 1)
 
-                batch_corrects = torch.sum((preds == labels)).item()
+                batch_corrects = torch.sum((preds == labels)).data[0]
                 batch_acc = batch_corrects / (labels.size(0))
 
                 logging.info('%s [%d-%d] | batch-loss: %.3f | acc@1: %.3f'
-                             % (dt(), epoch, batch_cnt, loss.item(), batch_acc))
+                             % (dt(), epoch, batch_cnt, loss.data[0], batch_acc))
 
 
             if step % val_inter == 0:
@@ -89,13 +89,13 @@ def train(model,
                     # print data
                     inputs,  labels = data_val
 
-                    inputs = Variable(inputs.cpu())
-                    labels = Variable(torch.from_numpy(np.array(labels)).long().cpu())
+                    inputs = Variable(inputs.cuda())
+                    labels = Variable(torch.from_numpy(np.array(labels)).long().cuda())
 
                     # forward
                     outputs = model(inputs)
                     if isinstance(outputs, list):
-                        loss = criterion(outputs[0], labels)  #这里选择的crossentropy
+                        loss = criterion(outputs[0], labels)
                         loss += criterion(outputs[1], labels)
                         outputs = outputs[0]
 
@@ -104,8 +104,8 @@ def train(model,
                     _, preds = torch.max(outputs, 1)
 
                     # statistics
-                    val_loss += loss.item()
-                    batch_corrects = torch.sum((preds == labels)).item()
+                    val_loss += loss.data[0]
+                    batch_corrects = torch.sum((preds == labels)).data[0]
                     val_corrects += batch_corrects
 
                 val_loss = val_loss / val_size
